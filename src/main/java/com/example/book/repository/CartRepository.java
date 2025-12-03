@@ -22,5 +22,6 @@ public interface CartRepository extends JpaRepository<CartItem, Long> {
 
 	List<CartItem> findByUserIdAndOrderIsNull(Long userId);
 
-	Optional<CartItem> findByUserIdAndBookId(Long userId, Long bookId);
+	Optional<CartItem> findByUserIdAndBookIdAndOrderIsNull(Long userId, Long bookId);
+
 }

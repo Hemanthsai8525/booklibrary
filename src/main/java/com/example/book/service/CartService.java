@@ -28,20 +28,23 @@ public class CartService {
     // ADD TO CART (Correct behavior)
     public CartItem add(CartItem item) {
 
-        // 1. Check if cart item already exists for this user + book
-        Optional<CartItem> existing = cartRepo.findByUserIdAndBookId(item.getUserId(), item.getBookId());
+        // Only check active cart items
+        Optional<CartItem> existing = cartRepo.findByUserIdAndBookIdAndOrderIsNull(
+                item.getUserId(),
+                item.getBookId()
+        );
 
+        // If already exists in CART → increase quantity
         if (existing.isPresent()) {
-            CartItem existingItem = existing.get();
-            existingItem.setQuantity(existingItem.getQuantity() + item.getQuantity());
-            return cartRepo.save(existingItem);
+            CartItem ex = existing.get();
+            ex.setQuantity(ex.getQuantity() + item.getQuantity());
+            return cartRepo.save(ex);
         }
 
-        // 2. Make sure new cart items are not attached to any order
-        item.setOrder(null);
-
+        // Otherwise insert as new cart item (order=null)
         return cartRepo.save(item);
     }
+
 
     // UPDATE QUANTITY
     public CartItem updateQuantity(CartItem item) {
