@@ -8,11 +8,26 @@ import java.util.Optional;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.example.book.dto.UserDto;
 import com.example.book.model.User;
 import com.example.book.repository.UserRepository;
 
 @Service
 public class UserService {
+	
+	public UserDto toDto(User user) {
+	    if (user == null) return null;
+
+	    return new UserDto(
+	        user.getId(),
+	        user.getUsername(),
+	        user.getEmail(),
+	        user.getPhone(),
+	        user.getAddress(),
+	        user.getRole()
+	    );
+	}
+
 
     private final UserRepository repo;
     private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
@@ -47,46 +62,58 @@ public class UserService {
         String token = JwtService.generateToken(user.getUsername(), user.getRole());
         String refresh = JwtService.generateRefreshToken(user.getUsername());
 
-        return Map.of(
-                "id", user.getId(),
-                "username", user.getUsername(),
-                "email", user.getEmail(),
-                "phone", user.getPhone(),
-                "role", user.getRole(),
-                "address", user.getAddress(),
-                "token", token,
-                "refreshToken", refresh
-        );
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("id", user.getId());
+        resp.put("username", user.getUsername());
+        resp.put("email", user.getEmail());
+        resp.put("phone", user.getPhone());
+        resp.put("role", user.getRole());
+        resp.put("address", user.getAddress());
+        resp.put("token", token);
+        resp.put("refreshToken", refresh);
+
+        return resp;
     }
+
 
 
     // ================= LOGIN (EMAIL + PHONE + USERNAME) =================
     public Map<String, Object> login(String input, String password) {
 
-        User user = null;
+        System.out.println("LOGIN INPUT = " + input);
+        System.out.println("LOGIN PASSWORD = " + password);
 
-        // LOGIN BY EMAIL
-        user = repo.findByEmail(input);
+        // 1️⃣ LOGIN BY EMAIL
+        User user = repo.findByEmail(input);
         if (user != null) {
+            System.out.println("Found by email: " + user.getUsername());
+            System.out.println("Password match = " + encoder.matches(password, user.getPassword()));
+
             if (encoder.matches(password, user.getPassword())) {
-                return buildLoginResponse(user);
+            	return buildLoginResponse(user);
             }
             throw new RuntimeException("Invalid password");
         }
 
-        // LOGIN BY PHONE
+
+        // 2️⃣ LOGIN BY PHONE
         user = repo.findByPhone(input);
         if (user != null) {
+            System.out.println("Found by phone: " + user.getUsername());
+            System.out.println("Password match = " + encoder.matches(password, user.getPassword()));
             if (encoder.matches(password, user.getPassword())) {
                 return buildLoginResponse(user);
             }
             throw new RuntimeException("Invalid password");
         }
 
-        // LOGIN BY USERNAME
-        List<User> list = repo.findByUsername(input);
-        if (!list.isEmpty()) {
-            for (User u : list) {
+        // 3️⃣ LOGIN BY USERNAME
+        List<User> users = repo.findByUsername(input);
+        if (!users.isEmpty()) {
+            for (User u : users) {
+                System.out.println("Checking username: " + u.getUsername());
+                System.out.println("Password match? " + encoder.matches(password, u.getPassword()));
+
                 if (encoder.matches(password, u.getPassword())) {
                     return buildLoginResponse(u);
                 }
@@ -96,6 +123,7 @@ public class UserService {
 
         throw new RuntimeException("User not found");
     }
+
 
 
     // ================= UPDATE PROFILE =================

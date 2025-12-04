@@ -33,10 +33,14 @@ public class SecurityConfig {
 
                 // PUBLIC ENDPOINTS
                 .requestMatchers("/user/login", "/user/register").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/books/**").permitAll()
 
                 // ADMIN ONLY
+                .requestMatchers("/uploads/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE,"/books/*").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/user").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET,"/cart").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET,"/ordres").hasRole("ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
 
                 // USER ACCOUNT PROTECTED

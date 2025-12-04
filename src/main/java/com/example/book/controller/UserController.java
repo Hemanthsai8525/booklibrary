@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,6 +36,7 @@ public class UserController {
 		this.jwtService = jwtService;
 	}
 
+	
 	@GetMapping
 	public List<User> all() {
 		return svc.findAll();
@@ -61,29 +63,16 @@ public class UserController {
 	            return ResponseEntity.badRequest().body("Input + password required");
 	        }
 
-	        // Validate login → returns User
-	        User user = (User) svc.login(input, password);
+	        Map<String, Object> response = svc.login(input, password);
+	        System.out.println("response:"+response);
 
-	        // Generate tokens
-	        String accessToken = JwtService.generateToken(user.getUsername(), user.getRole());
-	        String refreshToken = JwtService.generateRefreshToken(user.getUsername());
-
-	        // Send full response
-	        return ResponseEntity.ok(Map.of(
-	                "id", user.getId(),
-	                "username", user.getUsername(),
-	                "email", user.getEmail(),
-	                "phone", user.getPhone(),
-	                "address", user.getAddress(),
-	                "role", user.getRole(),
-	                "token", accessToken,
-	                "refreshToken", refreshToken
-	        ));
+	        return ResponseEntity.ok(response);
 
 	    } catch (RuntimeException e) {
 	        return ResponseEntity.badRequest().body(e.getMessage());
 	    }
 	}
+
 	
 	@PostMapping("/refresh")
 	public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
