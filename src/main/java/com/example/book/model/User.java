@@ -5,7 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import lombok.Builder;
 
+@Builder
 @Entity
 public class User {
 
@@ -21,6 +23,7 @@ public class User {
 	@Column(unique = true)
 	private String phone;
 	private String address;
+	private String token;
 
 
 
@@ -93,4 +96,15 @@ public class User {
 
 	public void setAddress(String address) {
 		this.address = address;
-	}}
+	}
+
+	public void setToken(String token) {
+		this.token = token;
+		
+	}
+	public String getToken() {
+		return token;
+	}
+
+	
+}

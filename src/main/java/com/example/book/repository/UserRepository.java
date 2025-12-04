@@ -8,10 +8,11 @@ import com.example.book.model.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    List<User> findByUsername(String username);  // username NOT unique
-    User findByEmail(String email);              // email must be unique
+    List<User> findByUsername(String username);// username NOT unique
+    User findByEmail(String email);  // email must be unique
     User findByPhone(String phone);              // phone must be unique
 
+    
     boolean existsByEmail(String email);
     boolean existsByPhone(String phone);
 }
