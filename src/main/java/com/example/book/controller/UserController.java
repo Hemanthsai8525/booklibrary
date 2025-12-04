@@ -3,18 +3,21 @@ package com.example.book.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.book.dto.UserDto;
+import com.example.book.mapper.UserMapper;
 import com.example.book.model.User;
 import com.example.book.service.JwtService;
 import com.example.book.service.UserService;
@@ -24,149 +27,170 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/user")
 public class UserController {
-	
-	private final String secret = "hfuybiehv7812bjhjhdfhvjkdKJHJsdfghsdfjkhfdV8785485412";
 
-	private final UserService svc;
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
-	private final JwtService jwtService;
+    private final UserService userService;
+    private final JwtService jwtService;
 
-	public UserController(UserService svc, JwtService jwtService) {
-		this.svc = svc;
-		this.jwtService = jwtService;
-	}
+    public UserController(UserService userService, JwtService jwtService) {
+        this.userService = userService;
+        this.jwtService = jwtService;
+    }
 
-	
-	@GetMapping
-	public List<User> all() {
-		return svc.findAll();
+    // -------------------- List users (ADMIN only) --------------------
+    @GetMapping
+    public ResponseEntity<?> all(Authentication auth) {
+        // SecurityConfig already restricts this endpoint to ADMIN.
+        List<User> users = userService.findAll();
+        // map to DTOs
+        List<UserDto> dtoList = users.stream().map(UserMapper::toDto).toList();
+        return ResponseEntity.ok(dtoList);
+    }
 
-	}
+    // -------------------- Register --------------------
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody User user) {
+        try {
+            User saved = userService.register(user);
+            return ResponseEntity.ok(UserMapper.toDto(saved));
+        } catch (RuntimeException ex) {
+            log.warn("Register failed: {}", ex.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
 
-	@PostMapping("/register")
-	public ResponseEntity<?> register(@RequestBody User user) {
-		try {
-			User saved = svc.register(user);
-			return ResponseEntity.ok(saved);
-		} catch (RuntimeException e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		}
-	}
+    // -------------------- Login --------------------
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
+        try {
+            String input = body.get("input");
+            String password = body.get("password");
+            if (input == null || password == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "input and password required"));
+            }
+            Map<String, Object> resp = userService.login(input, password);
+            return ResponseEntity.ok(resp);
+        } catch (RuntimeException ex) {
+            log.warn("Login failed: {}", ex.getMessage());
+            return ResponseEntity.status(401).body(Map.of("error", ex.getMessage()));
+        }
+    }
 
-	@PostMapping("/login")
-	public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
-	    try {
-	        String input = body.get("input");
-	        String password = body.get("password");
+    // -------------------- Refresh --------------------
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
+        try {
+            String refreshToken = body.get("refreshToken");
+            if (refreshToken == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "refreshToken required"));
+            }
+            // static helper returns subject (username) if valid
+            String username = JwtService.validateRefreshToken(refreshToken);
+            if (username == null) {
+                return ResponseEntity.status(403).body(Map.of("error", "Invalid refresh token"));
+            }
 
-	        if (input == null || password == null) {
-	            return ResponseEntity.badRequest().body("Input + password required");
-	        }
+            // find user and issue new access token
+            User user = userService.findByUsernameSingle(username);
+            if (user == null) return ResponseEntity.status(403).body(Map.of("error", "Invalid refresh token"));
 
-	        Map<String, Object> response = svc.login(input, password);
-	        System.out.println("response:"+response);
+            String newAccess = jwtService.generateToken(user.getId(), user.getUsername(), user.getRole());
+            return ResponseEntity.ok(Map.of("accessToken", newAccess));
+        } catch (Exception ex) {
+            log.warn("Refresh token failed: {}", ex.getMessage());
+            return ResponseEntity.status(403).body(Map.of("error", "Invalid refresh token"));
+        }
+    }
 
-	        return ResponseEntity.ok(response);
+    // -------------------- Me --------------------
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication auth, HttpServletRequest request) {
+        // If authenticated, auth.getName() will be the username (as set by JwtFilter)
+        if (auth == null || auth.getName() == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthenticated"));
+        }
+        String username = auth.getName();
+        User user = userService.findByUsernameSingle(username);
+        if (user == null) return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+        return ResponseEntity.ok(UserMapper.toDto(user));
+    }
 
-	    } catch (RuntimeException e) {
-	        return ResponseEntity.badRequest().body(e.getMessage());
-	    }
-	}
+    // -------------------- Get user by id --------------------
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getUser(@PathVariable Long id, Authentication auth) {
+        try {
+            if (auth == null || auth.getName() == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Unauthenticated"));
+            }
+            String loggedName = auth.getName();
+            User loggedUser = userService.findByUsernameSingle(loggedName);
+            if (loggedUser == null) return ResponseEntity.status(401).body(Map.of("error", "Unauthenticated"));
 
-	
-	@PostMapping("/refresh")
-	public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
-	    try {
-	        String refreshToken = body.get("refreshToken");
-	        String username = JwtService.validateRefreshToken(refreshToken);
+            User target = userService.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
 
-	        User user = svc.findByUsername(username);
-	        if (user == null) {
-	            return ResponseEntity.status(403).body("Invalid refresh token");
-	        }
+            // If not admin, only allow self
+            if (!"ADMIN".equalsIgnoreCase(loggedUser.getRole())) {
+                if (!loggedUser.getId().equals(id)) {
+                    return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+                }
+            }
+            return ResponseEntity.ok(UserMapper.toDto(target));
+        } catch (RuntimeException ex) {
+            log.warn("Get user failed: {}", ex.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
 
-	        String newAccess = JwtService.generateToken(username, user.getRole());
-	        return ResponseEntity.ok(Map.of("accessToken", newAccess));
+    // -------------------- Update profile --------------------
+    @PutMapping("/{id}/profile")
+    public ResponseEntity<?> updateProfile(@PathVariable Long id,
+                                           @RequestBody User updated,
+                                           Authentication auth) {
+        try {
+            if (auth == null || auth.getName() == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Unauthenticated"));
+            }
+            String loggedName = auth.getName();
+            User loggedUser = userService.findByUsernameSingle(loggedName);
+            if (loggedUser == null) return ResponseEntity.status(401).body(Map.of("error", "Unauthenticated"));
 
-	    } catch (Exception e) {
-	        return ResponseEntity.status(403).body("Invalid refresh token");
-	    }
-	}
+            // Non-admins can only update their own profile
+            if (!"ADMIN".equalsIgnoreCase(loggedUser.getRole())) {
+                if (!loggedUser.getId().equals(id)) {
+                    return ResponseEntity.status(403).body(Map.of("error", "You can update only your own profile"));
+                }
+            }
 
+            User saved = userService.updateProfile(id, updated);
 
+            // Issue a new access token if username or role changed (safe to always issue)
+            String newToken = jwtService.generateToken(saved.getId(), saved.getUsername(), saved.getRole());
 
+            return ResponseEntity.ok(Map.of(
+                    "message", "Profile updated",
+                    "user", UserMapper.toDto(saved),
+                    "accessToken", newToken
+            ));
+        } catch (RuntimeException ex) {
+            log.warn("Update profile failed: {}", ex.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
 
-	@GetMapping("/me")
-	public ResponseEntity<?> me(@RequestHeader("Authorization") String authHeader) {
-		try {
-			String token = authHeader.replace("Bearer ", "");
-			String username = jwtService.extractUsername(token);
-			return ResponseEntity.ok("Token is valid. User: " + username);
-		} catch (Exception e) {
-			return ResponseEntity.badRequest().body("Invalid token");
-		}
-	}
+    // -------------------- Delete user (ADMIN) --------------------
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> delete(@PathVariable Long id, Authentication auth) {
+        // SecurityConfig should restrict delete to admin; double-checking
+        if (auth == null || auth.getName() == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthenticated"));
+        }
+        User loggedUser = userService.findByUsernameSingle(auth.getName());
+        if (loggedUser == null || !"ADMIN".equalsIgnoreCase(loggedUser.getRole())) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        }
 
-	@PutMapping("/{id}/updateprofile")
-	public ResponseEntity<?> updateProfile(@PathVariable Long id,
-	                                       @RequestBody User updated,
-	                                       HttpServletRequest request) {
-	    try {
-	        String loggedUser = (String) request.getAttribute("username");
-	        String loggedRole = (String) request.getAttribute("role");
-
-	        if (loggedUser == null || loggedRole == null) {
-	            return ResponseEntity.status(401).body("Invalid or missing token");
-	        }
-
-	        User target = svc.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
-
-	        // USER can update only themselves
-	        if (!"ADMIN".equals(loggedRole) && !target.getUsername().equals(loggedUser)) {
-	            return ResponseEntity.status(403).body("You cannot update another user’s profile");
-	        }
-
-	        User updatedUser = svc.updateProfile(id, updated);
-
-	        // ⭐ IMPORTANT: Generate NEW TOKEN after username change
-	        String newToken = JwtService.generateToken(updatedUser.getUsername(), updatedUser.getRole());
-
-	        return ResponseEntity.ok(Map.of(
-	                "message", "Profile updated",
-	                "user", updatedUser,
-	                "token", newToken
-	        ));
-
-	    } catch (RuntimeException e) {
-	        return ResponseEntity.badRequest().body(e.getMessage());
-	    }
-	}
-
-
-	@GetMapping("/{id}")
-	public ResponseEntity<?> getUser(@PathVariable Long id, HttpServletRequest request) {
-		try {
-			String loggedUsername = (String) request.getAttribute("username");
-			String loggedRole = (String) request.getAttribute("role");
-
-			User target = svc.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
-
-			// USER can only view himself
-			if (!"ADMIN".equals(loggedRole) && !loggedUsername.equals(target.getUsername())) {
-				return ResponseEntity.status(403).body("You cannot view another user’s profile");
-			}
-
-			return ResponseEntity.ok(target);
-
-		} catch (Exception e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		}
-	}
-
-	@DeleteMapping("/{id}")
-	public String delete(@PathVariable Long id) {
-		svc.delete(id);
-		return "User deleted successfully";
-	}
-
+        userService.delete(id);
+        return ResponseEntity.ok(Map.of("message", "User deleted"));
+    }
 }

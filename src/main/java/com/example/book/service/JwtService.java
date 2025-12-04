@@ -15,12 +15,13 @@ public class JwtService {
 	 private static final String secret = "hfuybiehv7812bjhjhdfhvjkdKJHJsdfghsdfjkhfdV8785485412";
 	 private static final String refreshSecret = "xgdhxgfdburiuewuioeuyuewihiegf7326034jvhroe48n43u8943nu43";
     @SuppressWarnings("deprecation")
-	public static String generateToken(String username,String role) {
+    public static String generateToken(Long id, String username, String role) {
         return Jwts.builder()
                 .setSubject(username)
+                .claim("id", id)
                 .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000))
+                .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // 1 day
                 .signWith(SignatureAlgorithm.HS256, secret)
                 .compact();
     }
@@ -34,12 +35,13 @@ public class JwtService {
                 .getSubject();
     }
     
-    public static String generateRefreshToken(String username) {
+    public static String generateRefreshToken(Long id, String username) {
         return Jwts.builder()
                 .setSubject(username)
+                .claim("id", id)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000)) // 7 days
-                .signWith(SignatureAlgorithm.HS256, secret)
+                .signWith(SignatureAlgorithm.HS256, refreshSecret)
                 .compact();
     }
     public static String validateRefreshToken(String token) {

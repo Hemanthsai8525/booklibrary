@@ -17,63 +17,64 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
-	
-	 private static final String secret = "hfuybiehv7812bjhjhdfhvjkdKJHJsdfghsdfjkhfdV8785485412";
+    private static final String secret = "hfuybiehv7812bjhjhdfhvjkdKJHJsdfghsdfjkhfdV8785485412";
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain)
+            throws ServletException, IOException {
 
-        // Public endpoints
         String path = request.getRequestURI();
-        if (path.startsWith("/user/login") || path.startsWith("/user/register")) {
+        if (path.startsWith("/user/login") ||
+            path.startsWith("/user/register") ||
+            path.startsWith("/user/refresh")) {
             chain.doFilter(request, response);
             return;
         }
 
-        // Get token
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             chain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7);
+        String token = authHeader.substring(7);
 
         try {
-            // Parse claims
             Claims claims = Jwts.parser()
                     .setSigningKey(secret)
                     .parseClaimsJws(token)
                     .getBody();
 
             String username = claims.getSubject();
-            String role = claims.get("role", String.class);// <<==== GET ROLE
+            String role = claims.get("role", String.class);
+            Long userId = claims.get("id", Long.class);
 
-            
+            // Add attributes for controllers
             request.setAttribute("username", username);
             request.setAttribute("role", role);
-            // CREATE authentication object with ROLE
+            request.setAttribute("userId", userId);
+
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(
                             username,
                             null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role)) // <<==== ROLE HERE
+                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
                     );
 
-            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            auth.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request)
+            );
 
-            // Set authentication
             SecurityContextHolder.getContext().setAuthentication(auth);
 
-        } catch (Exception ex) {
-            System.out.println("JWT Error: " + ex.getMessage());
+        } catch (Exception e) {
+            // Token invalid → do NOT authenticate, but allow request to continue
+            SecurityContextHolder.clearContext();
         }
 
         chain.doFilter(request, response);

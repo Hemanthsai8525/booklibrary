@@ -25,35 +25,32 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http.csrf(csrf -> csrf.disable());
-
-        http.sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         http.authorizeHttpRequests(auth -> auth
 
-                // PUBLIC ENDPOINTS
-                .requestMatchers("/user/login", "/user/register").permitAll()
-                .requestMatchers("/books/**").permitAll()
+            // ------------------ PUBLIC ENDPOINTS ------------------
+            .requestMatchers("/user/login", "/user/register", "/user/refresh").permitAll()
+            .requestMatchers(HttpMethod.GET, "/books/**").permitAll()
 
-                // ADMIN ONLY
-                .requestMatchers("/uploads/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE,"/books/*").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/user").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET,"/cart").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET,"/ordres").hasRole("ADMIN")
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+            // ------------------ ADMIN PROTECTED ------------------
+            .requestMatchers("/admin/**").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.GET, "/user").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/user/**").hasRole("ADMIN")
 
-                // USER ACCOUNT PROTECTED
-                .requestMatchers(HttpMethod.GET, "/user/*").hasAnyRole("USER", "ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/user/*/profile").hasAnyRole("USER", "ADMIN")
+            // ------------------ USER ACCESS (both USER & ADMIN) ------------------
+            .requestMatchers("/user/me").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.PUT, "/user/*/profile").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.GET, "/user/*").hasAnyRole("USER", "ADMIN")
 
-                // ORDER & CART
-                .requestMatchers("/orders/**", "/cart/**").hasAnyRole("USER", "ADMIN")
+            // ------------------ ORDER & CART ------------------
+            .requestMatchers("/orders/**", "/cart/**").hasAnyRole("USER", "ADMIN")
 
-                // EVERYTHING ELSE
-                .anyRequest().authenticated()
+            // ------------------ ANYTHING ELSE ------------------
+            .anyRequest().authenticated()
         );
 
+        // Register JWT filter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
