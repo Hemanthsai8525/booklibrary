@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.book.dto.OrderRequest;
@@ -54,6 +55,11 @@ public class OrderController {
         return svc.getOrder(orderId);
     }
 
+    @PostMapping("/update-status")
+    public String update(@RequestParam Long id, @RequestParam String status) {
+        svc.updateStatus(id, status); // ✔️ FIXED
+        return "Updated";
+    }
     
     
 }

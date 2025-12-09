@@ -29,24 +29,27 @@ public class SecurityConfig {
 
         http.authorizeHttpRequests(auth -> auth
 
-            // ------------------ PUBLIC ENDPOINTS ------------------
+            // ------------------ PUBLIC ------------------
             .requestMatchers("/user/login", "/user/register", "/user/refresh").permitAll()
-            .requestMatchers(HttpMethod.GET, "/books/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/books", "/books/**").permitAll()
 
-            // ------------------ ADMIN PROTECTED ------------------
+            // ------------------ ADMIN ------------------
             .requestMatchers("/admin/**").hasRole("ADMIN")
             .requestMatchers(HttpMethod.GET, "/user").hasRole("ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/user/**").hasRole("ADMIN")
 
-            // ------------------ USER ACCESS (both USER & ADMIN) ------------------
+            // ------------------ AUTHENTICATED USER ------------------
             .requestMatchers("/user/me").hasAnyRole("USER", "ADMIN")
             .requestMatchers(HttpMethod.PUT, "/user/*/profile").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.GET, "/user/*").hasAnyRole("USER", "ADMIN")
+
+            // prevent overriding login/register:
+            .requestMatchers("/user/**").authenticated()
 
             // ------------------ ORDER & CART ------------------
-            .requestMatchers("/orders/**", "/cart/**").hasAnyRole("USER", "ADMIN")
+            .requestMatchers("/orders", "/orders/**").hasAnyRole("USER", "ADMIN")
+            .requestMatchers("/cart", "/cart/**").hasAnyRole("USER", "ADMIN")
 
-            // ------------------ ANYTHING ELSE ------------------
+            // ------------------ EVERYTHING ELSE ------------------
             .anyRequest().authenticated()
         );
 

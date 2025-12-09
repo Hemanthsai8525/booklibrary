@@ -8,24 +8,37 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 
 @Entity
 public class CartItem {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private Long userId;
-    private Long bookId;
-    private int quantity;
+	private Long userId;
+	private Long bookId;
+	private int quantity;
 
-    @ManyToOne
-    @JoinColumn(name = "order_id")
-    @JsonBackReference
-    private Order order;
+	@ManyToOne
+	@JoinColumn(name = "order_id")
+	@JsonBackReference
+	private Order order;
 
-    public CartItem() {}
+	@Transient
+	private Book book;
+
+	public Book getBook() {
+		return book;
+	}
+
+	public void setBook(Book book) {
+		this.book = book;
+	}
+
+	public CartItem() {
+	}
 
 	public Long getId() {
 		return id;
@@ -66,6 +79,5 @@ public class CartItem {
 	public void setOrder(Order order) {
 		this.order = order;
 	}
-    
-    
+
 }

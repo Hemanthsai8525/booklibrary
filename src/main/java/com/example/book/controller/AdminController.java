@@ -15,6 +15,7 @@ import com.example.book.model.Book;
 import com.example.book.model.Order;
 import com.example.book.repository.BookRepository;
 import com.example.book.repository.OrderRepository;
+import com.example.book.service.OrderService;
 
 @RestController
 @RequestMapping("/admin")
@@ -22,11 +23,12 @@ public class AdminController {
 
     private final BookRepository bookRepo;
     private final OrderRepository orderRepo;
+	private final OrderService orderService;
 
-    public AdminController(BookRepository bookRepo, OrderRepository orderRepo) {
+    public AdminController(BookRepository bookRepo, OrderRepository orderRepo,OrderService orderService) {
         this.bookRepo = bookRepo;
         this.orderRepo = orderRepo;
-    }
+        this.orderService = orderService;    }
 
     // add book
     @PostMapping("/books")
@@ -53,4 +55,10 @@ public class AdminController {
     public ResponseEntity<List<Order>> allOrders() {
         return ResponseEntity.ok(orderRepo.findAll());
     }
+    
+    @PutMapping("/orders/{orderId}/status")
+    public Order updateStatus(@PathVariable Long orderId, @RequestBody String status) {
+        return orderService.updateStatus(orderId, status);
+    }
+
 }

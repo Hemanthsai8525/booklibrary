@@ -7,88 +7,118 @@ import org.springframework.stereotype.Service;
 import com.example.book.model.Book;
 import com.example.book.model.CartItem;
 import com.example.book.model.Order;
+import com.example.book.model.OrderHistory;
 import com.example.book.repository.BookRepository;
 import com.example.book.repository.CartRepository;
+import com.example.book.repository.OrderHistoryRepository;
 import com.example.book.repository.OrderRepository;
 
 @Service
 public class OrderService {
 
-    private final OrderRepository repo;
-    private final CartRepository cartRepo;
-    private final BookRepository bookRepo;
+	private final OrderRepository repo;
+	private final CartRepository cartRepo;
+	private final BookRepository bookRepo;
+	private final OrderHistoryRepository historyRepo;
 
-    public OrderService(OrderRepository repo, CartRepository cartRepo, BookRepository bookRepo) {
-        this.repo = repo;
-        this.cartRepo = cartRepo;
-        this.bookRepo = bookRepo;
-    }
+	public OrderService(OrderRepository repo, CartRepository cartRepo, BookRepository bookRepo,
+			OrderHistoryRepository historyRepo) {
+		this.repo = repo;
+		this.cartRepo = cartRepo;
+		this.bookRepo = bookRepo;
+		this.historyRepo = historyRepo;
+	}
 
-    // PLACE ORDER (Correct logic)
-    public Order placeOrder(Long userId, String address, String phone) {
+	// ------------------ PLACE ORDER ------------------
+	public Order placeOrder(Long userId, String address, String phone) {
 
-        if (userId == null) {
-            throw new RuntimeException("Invalid user");
-        }
+		if (userId == null)
+			throw new RuntimeException("Invalid user");
 
-        List<CartItem> items = cartRepo.findByUserIdAndOrderIsNull(userId);
+		List<CartItem> items = cartRepo.findByUserIdAndOrderIsNull(userId);
+		if (items.isEmpty())
+			throw new RuntimeException("No items in cart");
 
-        if (items == null || items.isEmpty()) {
-            throw new RuntimeException("No items in cart");
-        }
+		double total = 0;
+		for (CartItem ci : items) {
+			Book b = bookRepo.findById(ci.getBookId())
+					.orElseThrow(() -> new RuntimeException("Book not found: " + ci.getBookId()));
+			total += b.getPrice() * ci.getQuantity();
+		}
 
-        double total = 0;
+		Order order = new Order();
+		order.setUserId(userId);
+		order.setTotal(total);
+		order.setAddress(address);
+		order.setPhone(phone);
+		order.setStatus("PENDING");
 
-        for (CartItem ci : items) {
-            Book b = bookRepo.findById(ci.getBookId())
-                    .orElseThrow(() -> new RuntimeException("Book not found: " + ci.getBookId()));
-            total += b.getPrice() * ci.getQuantity();
-        }
+		Order savedOrder = repo.save(order);
 
-        Order order = new Order();
-        order.setUserId(userId);
-        order.setTotal(total);
-        order.setAddress(address);
-        order.setPhone(phone);
+		for (CartItem ci : items) {
+			ci.setOrder(savedOrder);
+			cartRepo.save(ci);
+		}
 
-        Order savedOrder = repo.save(order);
+		OrderHistory history = new OrderHistory("PENDING", savedOrder);
+		historyRepo.save(history);
+		savedOrder.getHistory().add(history);
 
-        for (CartItem ci : items) {
-            ci.setOrder(savedOrder);
-            cartRepo.save(ci);
-        }
+		return enrichOrder(savedOrder);
+	}
 
-        return savedOrder;
-    }
+	// ------------------ UPDATE STATUS ------------------
+	public Order updateStatus(Long orderId, String newStatus) {
 
+		Order order = repo.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
 
-    // DELETE ORDER
-    public void deleteOrder(Long orderId) {
-        Order order = repo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+		order.setStatus(newStatus);
 
-        List<CartItem> items = cartRepo.findByOrderId(orderId);
-        cartRepo.deleteAll(items);
+		OrderHistory history = new OrderHistory(newStatus, order);
+		historyRepo.save(history);
 
-        repo.delete(order);
-    }
+		order.getHistory().add(history);
 
-    public List<Order> findByUserId(Long userId) {
-        List<Order> orders = repo.findByUserId(userId);
-        for (Order o : orders) {
-            List<CartItem> items = cartRepo.findByOrderId(o.getId());
-            o.setItems(items);
-        }
-        return orders;
-    }
+		return repo.save(order);
+	}
 
-    public List<Order> findAll() {
-        return repo.findAll();
-    }
+	// ------------------ DELETE ORDER ------------------
+	public void deleteOrder(Long orderId) {
+		Order order = repo.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
 
-    public Order getOrder(Long orderId) {
-        return repo.findById(orderId)
-            .orElseThrow(() -> new RuntimeException("Order not found"));
-    }
+		List<CartItem> items = cartRepo.findByOrderId(orderId);
+		cartRepo.deleteAll(items);
 
+		repo.delete(order);
+	}
+
+	// ------------------ USER ORDERS ------------------
+	public List<Order> findByUserId(Long userId) {
+		return repo.findByUserId(userId).stream().map(this::enrichOrder).toList();
+	}
+
+	// ------------------ ADMIN: ALL ORDERS ------------------
+	public List<Order> findAll() {
+		return repo.findAll().stream().map(this::enrichOrder).toList();
+	}
+
+	// ------------------ GET ORDER ------------------
+	public Order getOrder(Long orderId) {
+		Order order = repo.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
+		return enrichOrder(order);
+	}
+
+	// ------------------ ENRICH ORDER WITH BOOK DETAILS ------------------
+	private Order enrichOrder(Order order) {
+
+		List<CartItem> items = cartRepo.findByOrderId(order.getId());
+
+		for (CartItem ci : items) {
+			Book book = bookRepo.findById(ci.getBookId()).orElse(null);
+			ci.setBook(book);
+		}
+
+		order.setItems(items);
+		return order;
+	}
 }

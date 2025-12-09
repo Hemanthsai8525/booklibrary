@@ -1,5 +1,6 @@
 package com.example.book.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -16,24 +17,44 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "orders")
 public class Order {
-	
+
 	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private Long userId;
-    private Double total;
-    private String address;
-    private String phone;
+	private Long userId;
+	private Double total;
+	private String address;
+	private String phone;
+	private String status; // PENDING, CONFIRMED, SHIPPED, PICKED_UP, DELIVERED, CANCELLED
 
+	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+	private List<OrderHistory> history = new ArrayList<>();
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL,fetch = FetchType.EAGER)
-    @JsonManagedReference
-    private List<CartItem> items;
+	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+	@JsonManagedReference
+	private List<CartItem> items;
 
-    public Order() {}
+	public Order() {
+	}
 
-    public Long getId() {
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public List<OrderHistory> getHistory() {
+		return history;
+	}
+
+	public void setHistory(List<OrderHistory> history) {
+		this.history = history;
+	}
+
+	public Long getId() {
 		return id;
 	}
 
@@ -81,5 +102,4 @@ public class Order {
 		this.items = items;
 	}
 
-	
 }
