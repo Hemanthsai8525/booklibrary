@@ -74,13 +74,33 @@ public class OrderService {
 
 		order.setStatus(newStatus);
 
-		OrderHistory history = new OrderHistory(newStatus, order);
+		OrderHistory history = new OrderHistory();
+		history.setStatus(newStatus);
+		history.setOrder(order);
 		historyRepo.save(history);
 
 		order.getHistory().add(history);
 
 		return repo.save(order);
 	}
+	
+	
+	 public Order confirmOrder(Long orderId) {
+	        Order order = repo.findById(orderId)
+	                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+	        order.setStatus("CONFIRMED");
+
+	        // Add history entry
+	        OrderHistory h = new OrderHistory();
+	        h.setStatus("CONFIRMED");
+	        h.setOrder(order);
+
+	        historyRepo.save(h);
+	        order.getHistory().add(h);
+
+	        return repo.save(order);
+	    }
 
 	// ------------------ DELETE ORDER ------------------
 	public void deleteOrder(Long orderId) {

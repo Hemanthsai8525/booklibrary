@@ -5,106 +5,105 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import lombok.Builder;
+import jakarta.persistence.Table;
 
-@Builder
 @Entity
+@Table(name = "user")
 public class User {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long U_id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-	private String username;
-	private String password;
-	private String role;
-	@Column(unique = true)
-	private String email;
-	@Column(unique = true)
-	private String phone;
-	private String address;
-	private String token;
+    private String username;
+    private String password;
+    private String role;  // USER / ADMIN
 
+    @Column(unique = true)
+    private String email;
 
+    @Column(unique = true)
+    private String phone;
 
+    private String address;
 
-	public String getEmail() {
-		return email;
-	}
+    private String token;
 
-	public void setEmail(String email) {
+    public User() {}
+    
+
+    public User(Long id, String username, String password, String role, String email, String phone) {
+		super();
+		this.id = id;
+		this.username = username;
+		this.password = password;
+		this.role = role;
 		this.email = email;
-	}
-
-	public String getPhone() {
-		return phone;
-	}
-
-	public void setPhone(String phone) {
 		this.phone = phone;
 	}
+
 
 	public Long getId() {
-		return U_id;
-	}
+        return id;
+    }
 
-	public void setId(Long id) {
-		this.U_id = id;
-	}
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-	public String getUsername() {
-		return username;
-	}
+    public String getUsername() {
+        return username;
+    }
 
-	public void setUsername(String username) {
-		this.username = username;
-	}
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-	public String getPassword() {
-		return password;
-	}
+    public String getPassword() {
+        return password;
+    }
 
-	public void setPassword(String password) {
-		this.password = password;
-	}
+    public void setPassword(String password) {
+        this.password = password;
+    }
 
-	public String getRole() {
-		return role;
-	}
+    public String getRole() {
+        return role;
+    }
 
-	public void setRole(String role) {
-		this.role = role;
-	}
+    public void setRole(String role) {
+        this.role = role;
+    }
 
-	public User() {
-	}
+    public String getEmail() {
+        return email;
+    }
 
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-	public User(Long u_id, String username, String password, String role, String email, String phone) {
-		super();
-		U_id = u_id;
-		this.username = username;
-		this.password = password;
-		this.role = role;
-		this.email = email;
-		this.phone = phone;
-	}
+    public String getPhone() {
+        return phone;
+    }
 
-	public String getAddress() {
-		return address;
-	}
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
 
-	public void setAddress(String address) {
-		this.address = address;
-	}
+    public String getAddress() {
+        return address;
+    }
 
-	public void setToken(String token) {
-		this.token = token;
-		
-	}
-	public String getToken() {
-		return token;
-	}
+    public void setAddress(String address) {
+        this.address = address;
+    }
 
-	
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
 }

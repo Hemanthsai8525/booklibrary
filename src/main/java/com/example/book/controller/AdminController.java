@@ -1,6 +1,8 @@
 package com.example.book.controller;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,23 +14,31 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.book.model.Book;
+import com.example.book.model.DeliveryAgent;
 import com.example.book.model.Order;
 import com.example.book.repository.BookRepository;
+import com.example.book.repository.DeliveryAgentRepository;
 import com.example.book.repository.OrderRepository;
 import com.example.book.service.OrderService;
+import com.example.book.service.UserService;
 
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
 
     private final BookRepository bookRepo;
+    private final UserService usvc;
     private final OrderRepository orderRepo;
 	private final OrderService orderService;
+	private final DeliveryAgentRepository drepo;
+	
 
-    public AdminController(BookRepository bookRepo, OrderRepository orderRepo,OrderService orderService) {
+    public AdminController(BookRepository bookRepo, OrderRepository orderRepo,OrderService orderService, DeliveryAgentRepository drepo, UserService usvc) {
         this.bookRepo = bookRepo;
+		this.usvc = usvc;
         this.orderRepo = orderRepo;
-        this.orderService = orderService;    }
+        this.orderService = orderService;
+		this.drepo = drepo;    }
 
     // add book
     @PostMapping("/books")
@@ -49,6 +59,17 @@ public class AdminController {
             return ResponseEntity.ok(existing);
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
+    
+    @GetMapping("/users")
+    public Map<String, Object> getAllUsers() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("users", usvc.findAll());
+        map.put("agents", drepo.findAll());
+        return map;
+    }
+    
+    
+
 
     // view all orders
     @GetMapping("/orders")
@@ -60,5 +81,29 @@ public class AdminController {
     public Order updateStatus(@PathVariable Long orderId, @RequestBody String status) {
         return orderService.updateStatus(orderId, status);
     }
+    
+    @PostMapping("/orders/{orderId}/assign/{agentId}")
+    public Order assignOrder(
+            @PathVariable Long orderId,
+            @PathVariable Long agentId
+    ) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        DeliveryAgent agent = drepo.findById(agentId)
+                .orElseThrow(() -> new RuntimeException("Agent not found"));
+
+        order.setAssignedAgent(agent);
+        order.setStatus("CONFIRMED");
+
+        return orderRepo.save(order);
+    }
+    
+    @PutMapping("/orders/{id}/confirm")
+    public ResponseEntity<?> confirmOrder(@PathVariable Long id) {
+        Order updated = orderService.confirmOrder(id);
+        return ResponseEntity.ok(updated);
+    }
+
 
 }

@@ -50,10 +50,10 @@ public class UserController {
 
     // -------------------- Register --------------------
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody UserDto dto) {
         try {
-            User saved = userService.register(user);
-            return ResponseEntity.ok(UserMapper.toDto(saved));
+            Object saved = userService.register(dto);
+            return ResponseEntity.ok(saved);
         } catch (RuntimeException ex) {
             log.warn("Register failed: {}", ex.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));

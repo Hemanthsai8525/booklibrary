@@ -11,6 +11,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
@@ -29,13 +31,28 @@ public class Order {
 	private String status; // PENDING, CONFIRMED, SHIPPED, PICKED_UP, DELIVERED, CANCELLED
 
 	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+	@JsonManagedReference
 	private List<OrderHistory> history = new ArrayList<>();
 
 	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
 	@JsonManagedReference
 	private List<CartItem> items;
+	
+	@ManyToOne
+	@JoinColumn(name = "assigned_agent_id")
+	private DeliveryAgent assignedAgent;
+
+
+	public DeliveryAgent getAssignedAgent() {
+		return assignedAgent;
+	}
+
+	public void setAssignedAgent(DeliveryAgent assignedAgent) {
+		this.assignedAgent = assignedAgent;
+	}
 
 	public Order() {
+		 this.history = new ArrayList<>();
 	}
 
 	public String getStatus() {
