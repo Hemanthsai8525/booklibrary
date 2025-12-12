@@ -20,16 +20,19 @@ public class OrderService {
 	private final CartRepository cartRepo;
 	private final BookRepository bookRepo;
 	private final OrderHistoryRepository historyRepo;
+	private final BookService bookService;
 
 	public OrderService(OrderRepository repo, CartRepository cartRepo, BookRepository bookRepo,
-			OrderHistoryRepository historyRepo) {
+			OrderHistoryRepository historyRepo, BookService bookService) {
 		this.repo = repo;
 		this.cartRepo = cartRepo;
 		this.bookRepo = bookRepo;
 		this.historyRepo = historyRepo;
+		this.bookService = bookService;
 	}
 
 	// ------------------ PLACE ORDER ------------------
+	@jakarta.transaction.Transactional
 	public Order placeOrder(Long userId, String address, String phone) {
 
 		if (userId == null)
@@ -40,9 +43,14 @@ public class OrderService {
 			throw new RuntimeException("No items in cart");
 
 		double total = 0;
+
 		for (CartItem ci : items) {
 			Book b = bookRepo.findById(ci.getBookId())
 					.orElseThrow(() -> new RuntimeException("Book not found: " + ci.getBookId()));
+
+			// Check and deduct stock
+			bookService.deductStock(ci.getBookId(), ci.getQuantity());
+
 			total += b.getPrice() * ci.getQuantity();
 		}
 
@@ -83,24 +91,23 @@ public class OrderService {
 
 		return repo.save(order);
 	}
-	
-	
-	 public Order confirmOrder(Long orderId) {
-	        Order order = repo.findById(orderId)
-	                .orElseThrow(() -> new RuntimeException("Order not found"));
 
-	        order.setStatus("CONFIRMED");
+	public Order confirmOrder(Long orderId) {
+		Order order = repo.findById(orderId)
+				.orElseThrow(() -> new RuntimeException("Order not found"));
 
-	        // Add history entry
-	        OrderHistory h = new OrderHistory();
-	        h.setStatus("CONFIRMED");
-	        h.setOrder(order);
+		order.setStatus("CONFIRMED");
 
-	        historyRepo.save(h);
-	        order.getHistory().add(h);
+		// Add history entry
+		OrderHistory h = new OrderHistory();
+		h.setStatus("CONFIRMED");
+		h.setOrder(order);
 
-	        return repo.save(order);
-	    }
+		historyRepo.save(h);
+		order.getHistory().add(h);
+
+		return repo.save(order);
+	}
 
 	// ------------------ DELETE ORDER ------------------
 	public void deleteOrder(Long orderId) {

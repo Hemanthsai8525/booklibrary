@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.book.model.Book;
 import com.example.book.model.DeliveryAgent;
 import com.example.book.model.Order;
 import com.example.book.repository.BookRepository;
@@ -22,6 +21,8 @@ import com.example.book.repository.OrderRepository;
 import com.example.book.service.OrderService;
 import com.example.book.service.UserService;
 
+
+
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -29,37 +30,21 @@ public class AdminController {
     private final BookRepository bookRepo;
     private final UserService usvc;
     private final OrderRepository orderRepo;
-	private final OrderService orderService;
-	private final DeliveryAgentRepository drepo;
-	
+    private final OrderService orderService;
+    private final DeliveryAgentRepository drepo;
 
-    public AdminController(BookRepository bookRepo, OrderRepository orderRepo,OrderService orderService, DeliveryAgentRepository drepo, UserService usvc) {
+    public AdminController(BookRepository bookRepo, OrderRepository orderRepo, OrderService orderService,
+            DeliveryAgentRepository drepo, UserService usvc) {
         this.bookRepo = bookRepo;
-		this.usvc = usvc;
+        this.usvc = usvc;
         this.orderRepo = orderRepo;
         this.orderService = orderService;
-		this.drepo = drepo;    }
-
-    // add book
-    @PostMapping("/books")
-    public ResponseEntity<Book> addBook(@RequestBody Book book) {
-        Book saved = bookRepo.save(book);
-        return ResponseEntity.ok(saved);
+        this.drepo = drepo;
     }
 
-    // edit book
-    @PutMapping("/books/{id}")
-    public ResponseEntity<Book> editBook(@PathVariable Long id, @RequestBody Book book) {
-        return bookRepo.findById(id).map(existing -> {
-            existing.setTitle(book.getTitle());
-            existing.setAuthor(book.getAuthor());
-            existing.setPrice(book.getPrice());
-            // set other fields as needed
-            bookRepo.save(existing);
-            return ResponseEntity.ok(existing);
-        }).orElseGet(() -> ResponseEntity.notFound().build());
-    }
-    
+    // Book management is handled by BookController
+
+
     @GetMapping("/users")
     public Map<String, Object> getAllUsers() {
         Map<String, Object> map = new HashMap<>();
@@ -67,26 +52,22 @@ public class AdminController {
         map.put("agents", drepo.findAll());
         return map;
     }
-    
-    
-
 
     // view all orders
     @GetMapping("/orders")
     public ResponseEntity<List<Order>> allOrders() {
         return ResponseEntity.ok(orderRepo.findAll());
     }
-    
+
     @PutMapping("/orders/{orderId}/status")
     public Order updateStatus(@PathVariable Long orderId, @RequestBody String status) {
         return orderService.updateStatus(orderId, status);
     }
-    
+
     @PostMapping("/orders/{orderId}/assign/{agentId}")
     public Order assignOrder(
             @PathVariable Long orderId,
-            @PathVariable Long agentId
-    ) {
+            @PathVariable Long agentId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
@@ -98,12 +79,11 @@ public class AdminController {
 
         return orderRepo.save(order);
     }
-    
+
     @PutMapping("/orders/{id}/confirm")
     public ResponseEntity<?> confirmOrder(@PathVariable Long id) {
         Order updated = orderService.confirmOrder(id);
         return ResponseEntity.ok(updated);
     }
-
 
 }

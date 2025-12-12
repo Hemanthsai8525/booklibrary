@@ -20,6 +20,7 @@ public class SecurityConfig {
 	private final JwtFilter jwtFilter;
 
 	public SecurityConfig(JwtFilter jwtFilter) {
+		System.out.println("SecurityConfig loaded! Admin updates permitted.");
 		this.jwtFilter = jwtFilter;
 	}
 
@@ -33,21 +34,26 @@ public class SecurityConfig {
 
 				// ---------- PUBLIC ----------
 				.requestMatchers("/user/login", "/user/register", "/user/refresh", "/delivery/login",
-						"/delivery/register", "/delivery/refresh").permitAll()
-				.requestMatchers(HttpMethod.GET, "/books", "/books/**").permitAll()
+						"/delivery/register", "/delivery/refresh")
+				.permitAll()
+				.requestMatchers(HttpMethod.GET, "/books").permitAll()
+				.requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 				// ---------- ADMIN ----------
 				.requestMatchers("/admin/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.POST,  "/books/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.PUT,  "/books/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.DELETE,  "/books/**").hasRole("ADMIN")
+
 				.requestMatchers(HttpMethod.GET, "/users").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.DELETE, "/user/**","/delivery/**").hasRole("ADMIN")
-				
+				.requestMatchers(HttpMethod.DELETE, "/user/**", "/delivery/**").hasRole("ADMIN")
 
 				// ---------- AUTHENTICATED USERS ----------
 				.requestMatchers("/user/me").hasAnyRole("USER", "ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/user/*/update-profile").hasAnyRole("USER", "ADMIN")
 
 				// agent endpoints -> require DELIVERY_AGENT role
-				.requestMatchers("/delivery/login", "/delivery/register").permitAll().requestMatchers("/delivery/**")
-				.hasRole("DELIVERY_AGENT")
+				.requestMatchers("/delivery/login", "/delivery/register").permitAll()
+				.requestMatchers("/delivery/**").hasRole("DELIVERY_AGENT")
 
 				// ---------- ORDERS / CART ----------
 				.requestMatchers("/orders", "/orders/**").hasAnyRole("USER", "ADMIN")

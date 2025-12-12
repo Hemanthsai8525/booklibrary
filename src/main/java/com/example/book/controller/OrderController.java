@@ -24,32 +24,35 @@ public class OrderController {
     public OrderController(OrderService svc) {
         this.svc = svc;
     }
-    
+
     @GetMapping
-    public List<Order> all(){
-    	return svc.findAll();
+    public List<Order> all() {
+        return svc.findAll();
     }
+
     @DeleteMapping("/{orderId}")
     public String deleteOrder(@PathVariable Long orderId) {
-    	svc.deleteOrder(orderId);
-        return "Order" + orderId+" deleted successfully";
+        svc.deleteOrder(orderId);
+        return "Order" + orderId + " deleted successfully";
     }
 
     @PostMapping("/place")
-    public Order placeOrder(@RequestBody OrderRequest req) {
-        return svc.placeOrder(
-                req.getUserId(),
-                req.getAddress(),
-                req.getPhone()
-        );
+    public org.springframework.http.ResponseEntity<?> placeOrder(@RequestBody OrderRequest req) {
+        try {
+            return org.springframework.http.ResponseEntity.ok(svc.placeOrder(
+                    req.getUserId(),
+                    req.getAddress(),
+                    req.getPhone()));
+        } catch (Exception e) {
+            return org.springframework.http.ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
-    
     @GetMapping("/user/{userId}")
     public List<Order> userOrders(@PathVariable Long userId) {
         return svc.findByUserId(userId);
     }
-    
+
     @GetMapping("/{orderId}")
     public Order getOrder(@PathVariable Long orderId) {
         return svc.getOrder(orderId);
@@ -60,6 +63,5 @@ public class OrderController {
         svc.updateStatus(id, status); // ✔️ FIXED
         return "Updated";
     }
-    
-    
+
 }

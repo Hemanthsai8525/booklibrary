@@ -64,12 +64,14 @@ public class BookService {
         existing.setCategory(updated.getCategory());
         existing.setDescription(updated.getDescription());
         existing.setImage(updated.getImage());
+        existing.setStock(updated.getStock());
 
         return repo.save(existing);
     }
-    
+
     private void deleteOldImage(String imagePath) {
-        if (imagePath == null || imagePath.trim().isEmpty()) return;
+        if (imagePath == null || imagePath.trim().isEmpty())
+            return;
 
         try {
             String clean = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
@@ -84,7 +86,6 @@ public class BookService {
         }
     }
 
-
     // ================= DELETE =================
     public void deleteById(Long id) {
         Book book = repo.findById(id)
@@ -93,8 +94,29 @@ public class BookService {
         deleteOldImage(book.getImage());
 
         repo.delete(book);
+
     }
 
+    // ================= STOCK MANAGEMENT =================
+    public Book updateStock(Long id, int stock) {
+        if (stock < 0)
+            throw new RuntimeException("Stock cannot be negative");
+
+        Book book = repo.findById(id).orElseThrow(() -> new RuntimeException("Book not found"));
+        book.setStock(stock);
+        return repo.save(book);
+    }
+
+    public void deductStock(Long id, int quantity) {
+        Book book = repo.findById(id).orElseThrow(() -> new RuntimeException("Book not found"));
+
+        if (book.getStock() < quantity) {
+            throw new RuntimeException("Not enough stock for book: " + book.getTitle());
+        }
+
+        book.setStock(book.getStock() - quantity);
+        repo.save(book);
+    }
 
     // ================= VALIDATION =================
     private void validateBook(Book b) {
@@ -115,8 +137,11 @@ public class BookService {
 
         if (b.getImage() == null || b.getImage().trim().isEmpty())
             throw new RuntimeException("Image is required");
+
+        if (b.getStock() == null || b.getStock() < 0)
+            throw new RuntimeException("Stock cannot be negative");
     }
-    
+
     public boolean existsByTitle(String title) {
         return repo.existsByTitle(title);
     }

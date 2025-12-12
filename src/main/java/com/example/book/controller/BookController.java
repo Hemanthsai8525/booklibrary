@@ -58,10 +58,30 @@ public class BookController {
 
     // ================= UPDATE BOOK ====================
     @PutMapping("/{id}")
-    public Book update(@PathVariable Long id, @RequestBody Book book) {
-        return svc.updateBook(id, book);
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Book book) {
+        try {
+            Book updated = svc.updateBook(id, book);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
-    
+
+    @PutMapping("/{id}/stock")
+    public ResponseEntity<?> updateStock(@PathVariable Long id, @RequestBody Map<String, Integer> payload) {
+        System.out.println("Payload received = " + payload);
+
+        try {
+            int stock = payload.get("stock");
+            System.out.println("Updating stock for ID = " + id + ", value = " + stock);
+            return ResponseEntity.ok(svc.updateStock(id, stock));
+        } catch (Exception e) {
+            System.out.println("ERROR = " + e);
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+
     @PostMapping("/bulk")
     public ResponseEntity<?> createBulk(@RequestBody List<Book> books) {
 
@@ -88,11 +108,8 @@ public class BookController {
                         "insertedCount", inserted.size(),
                         "skippedCount", skipped.size(),
                         "insertedBooks", inserted,
-                        "skippedBooks", skipped
-                )
-        );
+                        "skippedBooks", skipped));
     }
-
 
     // ================= DELETE BOOK ====================
     @DeleteMapping("/{id}")
@@ -116,7 +133,8 @@ public class BookController {
             String uploadDir = "uploads/";
 
             File dir = new File(uploadDir);
-            if (!dir.exists()) dir.mkdirs();
+            if (!dir.exists())
+                dir.mkdirs();
 
             String filename = System.currentTimeMillis() + "_" + file.getOriginalFilename();
             Path path = Paths.get(uploadDir + filename);
